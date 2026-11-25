@@ -18,3 +18,31 @@ Fastify MCP 宿主插件：无状态 Streamable HTTP、OpenAPI 能力索引、�
 1. `describe_capabilities` — 引导 MD + 已开启能力目录
 2. `search_apis` — 搜索已开启接口
 3. `call_api` — `mode=schema|invoke`
+
+## 快速接入
+
+```js
+const path = require('node:path');
+const { flowupRecommendedAllowlist, recommendDeny } = require('@kne/fastify-mcp');
+
+fastify.register(require('@kne/fastify-mcp'), {
+  prefix: '/api/v1',
+  adminPrefix: '/api/v1/admin/mcp',
+  guideMarkdownPath: path.join(__dirname, '../MCP.md'),
+  guideRootDir: path.join(__dirname, '..'),
+  deny: recommendDeny,
+  authenticate: async request => {
+    /* 校验 MCP Bearer，写入 request.userInfo */
+  },
+  authenticateAdmin: async request => {
+    /* 超管鉴权，维护 allowlist */
+  },
+  createInvokeHeaders: ctx => {
+    /* inject 时附加内部凭证（如一次性 nonce） */
+    return {};
+  }
+});
+
+// 首次可导入推荐种子：
+// PUT /api/v1/admin/mcp/mcp-allowlist/batch  body: { items: flowupRecommendedAllowlist }
+```

@@ -11,3 +11,5 @@ jobs:
     secrets: inherit
     with:
       package_name: '@kne/fastify-mcp'
+      run_test: true
+

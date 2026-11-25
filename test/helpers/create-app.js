@@ -9,7 +9,8 @@ const createApp = async ({
   authenticate,
   authenticateAdmin,
   useDefaultGuide,
-  disableAdminAuth
+  disableAdminAuth,
+  seedsDir
 } = {}) => {
   const fastify = Fastify({ logger: false });
 
@@ -100,6 +101,9 @@ const createApp = async ({
     mcpOptions.guideMarkdownPath = guideMarkdownPath || path.resolve(__dirname, '../../MCP.md');
     mcpOptions.guideRootDir = guideRootDir || path.resolve(__dirname, '../..');
   }
+  if (seedsDir) {
+    mcpOptions.seedsDir = seedsDir;
+  }
   await fastify.register(require('../../index'), mcpOptions);
 
   await fastify.register(
@@ -109,6 +113,8 @@ const createApp = async ({
   );
 
   await fastify.ready();
+  await fastify.sequelize.syncPromise;
+  await fastify.mcp.seedsReady;
   return fastify;
 };
 

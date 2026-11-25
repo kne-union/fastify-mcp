@@ -1,6 +1,7 @@
 const fp = require('fastify-plugin');
 const { findSwaggerOperation, normalizeMethod, operationKey } = require('../utils/openapi');
 const { isDenied } = require('../utils/deny');
+const { loadSeedItems } = require('../utils/seeds');
 
 const toRow = record => ({
   id: String(record.id),
@@ -170,6 +171,35 @@ module.exports = fp(async (fastify, options) => {
     return rows.map(toRow);
   };
 
+  /**
+   * 从业务仓 seeds 目录导入 allowlist（对齐 fastify-message 的 includeTemplate）。
+   * 目录不存在则跳过；单条校验失败（deny / 无 OpenAPI）打日志后跳过。
+   */
+  const includeSeeds = async dir => {
+    const items = await loadSeedItems(dir);
+    if (items === null) {
+      fastify.log.info('[fastify-mcp] seedsDir not exists, skip includeSeeds');
+      return { imported: 0, skipped: 0 };
+    }
+    if (!dir) {
+      return { imported: 0, skipped: 0 };
+    }
+    fastify.log.info('------start include mcp seeds------');
+    let imported = 0;
+    let skipped = 0;
+    for (const item of items) {
+      try {
+        await create(item);
+        imported += 1;
+      } catch (e) {
+        skipped += 1;
+        fastify.log.warn(`[fastify-mcp] skip seed item ${item?.method} ${item?.path}: ${e.message}`);
+      }
+    }
+    fastify.log.info('------end include mcp seeds------');
+    return { imported, skipped };
+  };
+
   fastify[options.name].services.allowlist = {
     list,
     get,
@@ -179,6 +209,7 @@ module.exports = fp(async (fastify, options) => {
     batchUpsert,
     sync,
     listActive,
+    includeSeeds,
     normalizeMethod,
     operationKey,
     resolveAgainstSwagger

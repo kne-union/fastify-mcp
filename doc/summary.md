@@ -20,6 +20,7 @@
 #### 基本用法
 
 ```javascript
+const path = require('node:path');
 const fastify = require('fastify')();
 
 await fastify.register(require('@fastify/swagger'), {
@@ -31,6 +32,8 @@ await fastify.register(require('@kne/fastify-sequelize'), {
 
 await fastify.register(require('@kne/fastify-mcp'), {
   prefix: '/api/v1',
+  // 业务仓种子目录（对齐 message.templateDir），库内不内置业务种子
+  seedsDir: path.resolve(__dirname, './mcpSeeds'),
   // guideMarkdownPath 默认 process.cwd()/MCP.md，一般无需配置
   authenticate: async request => {
     // 校验 MCP Bearer，写入 request.userInfo
@@ -43,14 +46,27 @@ await fastify.register(require('@kne/fastify-mcp'), {
 });
 ```
 
+业务仓在 `mcpSeeds/` 下放 `.js` / `.json` 种子文件，导出 allowlist 数组，例如：
+
+```javascript
+// mcpSeeds/recommended.js
+module.exports = [
+  { method: 'GET', path: '/api/v1/client/project/list', scenarios: ['建项目'], confirm: false },
+  { method: 'POST', path: '/api/v1/client/project/create', scenarios: ['建项目'], confirm: true }
+];
+```
+
+启动并完成 sequelize sync 后，插件会调用 `services.allowlist.includeSeeds(seedsDir)` 导入（也可手动调用）。
+
 #### 注意事项
 
 1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
 2. `authenticate` 必填；`authenticateAdmin` 默认关闭（管理端不鉴权），生产环境建议配置
 3. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
-4. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
-5. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
-6. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
+4. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库
+5. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
+6. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
+7. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
 
 #### 许可证
 

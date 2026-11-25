@@ -21,12 +21,13 @@
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
+| `seedsDir` | string | `null` | 业务仓 allowlist 种子目录（对齐 `message.templateDir`）；sync 后自动 `includeSeeds` |
 
 #### 命名空间注册
 
 本插件通过 `@kne/fastify-namespace` 注册到 `options.name`（默认 `mcp`）命名空间。常用访问：
 
-- `fastify.mcp.services.allowlist` — allowlist CRUD / sync
+- `fastify.mcp.services.allowlist` — allowlist CRUD / sync / `includeSeeds`
 - `fastify.mcp.services.capability` — 索引 / 搜索 / describe
 - `fastify.mcp.services.invoke` — `callApi`
 - `fastify.mcp.models.allowlist` — 数据模型
@@ -63,6 +64,7 @@
 #### 自定义配置示例
 
 ```javascript
+const path = require('node:path');
 const mcp = require('@kne/fastify-mcp');
 
 fastify.register(mcp, {
@@ -71,6 +73,8 @@ fastify.register(mcp, {
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
   deny: mcp.recommendDeny,
+  // 业务仓种子目录，建议 ./mcpSeeds（内放 .js / .json 数组）
+  seedsDir: path.resolve(__dirname, './mcpSeeds'),
   // 默认读取 process.cwd()/MCP.md，一般无需再配 guideMarkdownPath
   authenticate: async request => {
     /* Bearer 校验后 request.userInfo = ... */
@@ -82,10 +86,19 @@ fastify.register(mcp, {
   }
 });
 
-// 业务侧自备 allowlist 种子，经管理接口导入，例如：
-// PUT /api/v1/admin/mcp/mcp-allowlist/batch
-// body: { items: [{ method, path, scenarios, confirm }, ...] }
+// 也可手动：
+// await fastify.mcp.services.allowlist.includeSeeds(path.resolve(__dirname, './mcpSeeds'));
 ```
+
+#### seedsDir 约定
+
+| 项 | 说明 |
+|----|------|
+| 目录位置 | **业务仓**内，建议 `./mcpSeeds`；通过 `seedsDir` 传入绝对路径 |
+| 文件类型 | `.js`（`module.exports = [...]`）或 `.json`（数组） |
+| 条目字段 | `{ method, path, scenarios?, confirm?, enabled?, operationId? }` |
+| 加载时机 | sequelize `syncPromise` 完成后自动 `includeSeeds`；目录不存在则跳过 |
+| 失败策略 | 单条与 swagger/deny 校验失败时打日志并跳过，不中断启动 |
 
 #### 规则说明
 

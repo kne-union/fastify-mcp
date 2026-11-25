@@ -3,8 +3,10 @@ const { listSwaggerOperations, findSwaggerOperation, operationKey } = require('.
 const { isDenied } = require('../utils/deny');
 const { truncateText } = require('../utils/truncate');
 const { readGuideMarkdown } = require('../utils/guide');
+const { createAppError } = require('../utils/error');
 
 module.exports = fp(async (fastify, options) => {
+  const err = (messageId, statusCode, values) => createAppError(fastify, options.name, messageId, statusCode, values);
   const getSwagger = () => (typeof options.getSwagger === 'function' ? options.getSwagger() : fastify.swagger());
 
   const buildCatalog = async ({ keyword, tag, limit } = {}) => {
@@ -149,7 +151,7 @@ module.exports = fp(async (fastify, options) => {
   const getSchema = async args => {
     const entry = await resolveIndexEntry(args);
     if (!entry) {
-      throw new Error('接口未在 allowlist 中或 OpenAPI 不存在');
+      throw err('operationNotInAllowlist', 404);
     }
     const op = entry.operation || {};
     const payload = {

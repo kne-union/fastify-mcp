@@ -3,7 +3,11 @@ const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 const normalizeMethod = method => {
   const value = String(method || '').toLowerCase();
   if (!HTTP_METHODS.includes(value)) {
-    throw new Error(`method 必须是 ${HTTP_METHODS.join(' / ').toUpperCase()} 之一`);
+    const error = new Error('invalidHttpMethod');
+    error.statusCode = 400;
+    error.messageId = 'invalidHttpMethod';
+    error.messageValues = { methods: HTTP_METHODS.join(' / ').toUpperCase() };
+    throw error;
   }
   return value.toUpperCase();
 };

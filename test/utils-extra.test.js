@@ -80,7 +80,8 @@ describe('utils extra', () => {
       normalizeMethod('TRACE');
       expect.fail('should throw');
     } catch (e) {
-      expect(e.message).to.include('method');
+      expect(e.messageId).to.equal('invalidHttpMethod');
+      expect(e.messageValues.methods).to.include('GET');
     }
 
     const spec = {

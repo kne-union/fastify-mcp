@@ -13,11 +13,15 @@ const createAppError = (fastify, namespaceName, messageId, statusCode, values) =
   });
 };
 
-const sendTranslatedError = async (fastify, request, reply, error) => {
-  if (fastify.intl && typeof fastify.intl.translateError === 'function') {
-    await fastify.intl.translateError(request, error);
+const sendTranslatedError = async (fastify, request, reply, error, namespaceName = 'mcp') => {
+  let err = error;
+  if (err?.messageId && !err.intlName) {
+    err = createAppError(fastify, namespaceName, err.messageId, err.statusCode || 500, err.messageValues);
   }
-  return reply.code(error.statusCode || 500).send({ error: error.message || String(error) });
+  if (fastify.intl && typeof fastify.intl.translateError === 'function') {
+    await fastify.intl.translateError(request, err);
+  }
+  return reply.code(err.statusCode || 500).send({ error: err.message || String(err) });
 };
 
 module.exports = { createAppError, sendTranslatedError };

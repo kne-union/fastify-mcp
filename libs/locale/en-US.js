@@ -13,5 +13,7 @@ module.exports = {
   guideFileMissing: 'Guide file not found',
   guidePathEscape: 'Invalid guide file path',
   guideNotFile: 'Guide path is not a file',
-  guideTooLarge: 'Guide file is too large'
+  guideTooLarge: 'Guide file is too large',
+  invalidHttpMethod: 'method must be one of {methods}',
+  operationNotInAllowlist: 'Operation is not in allowlist or missing from OpenAPI'
 };

@@ -13,5 +13,7 @@ module.exports = {
   guideFileMissing: '引导文件不存在',
   guidePathEscape: '引导文件路径非法',
   guideNotFile: '引导路径不是文件',
-  guideTooLarge: '引导文件过大'
+  guideTooLarge: '引导文件过大',
+  invalidHttpMethod: 'method 必须是 {methods} 之一',
+  operationNotInAllowlist: '接口未在 allowlist 中或 OpenAPI 不存在'
 };

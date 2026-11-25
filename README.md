@@ -124,7 +124,7 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
-| `seedsDir` | string | `null` | 业务仓 allowlist 种子目录（对齐 `message.templateDir`）；sync 后自动 `includeSeeds` |
+| `seedsDir` | string | `null` | 业务仓 allowlist 种子目录；sync 后自动 `includeSeeds` |
 
 MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`），**不提供**业务可覆盖的 `authenticate`。
 

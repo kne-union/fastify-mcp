@@ -28,7 +28,7 @@ module.exports = fp(
         createInvokeHeaders: undefined,
         registerExtraTools: undefined,
         getSwagger: undefined,
-        // 业务仓 allowlist 种子目录（对齐 message.templateDir），库内不内置业务种子
+        // 业务仓 allowlist 种子目录，库内不内置业务种子
         seedsDir: null
       },
       options

@@ -17,7 +17,7 @@
 | `instructions` | string | 内置短说明 | MCP initialize instructions |
 | `authenticate` | function | — | **必填**，MCP POST 认证，写入 `request.userInfo` |
 | `authenticateGuide` | function | 回退 `authenticate` | `GET .../mcp/guide` 认证 |
-| `authenticateAdmin` | function | — | allowlist / catalog 管理认证 |
+| `authenticateAdmin` | function | 关闭 | allowlist / catalog 管理认证；未配置时不鉴权 |
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
@@ -76,9 +76,7 @@ fastify.register(mcp, {
   authenticate: async request => {
     /* Bearer 校验后 request.userInfo = ... */
   },
-  authenticateAdmin: async request => {
-    /* 超管校验 */
-  },
+  // authenticateAdmin 默认关闭；生产建议配置超管鉴权
   createInvokeHeaders: ctx => ({ 'x-mcp-internal-auth': '...' }),
   registerExtraTools: (mcpServer, { ctx }) => {
     /* 如 get_report_pdf 等业务特例 */

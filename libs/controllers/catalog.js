@@ -4,11 +4,11 @@ module.exports = fp(async (fastify, options) => {
   const { services } = fastify[options.name];
   const adminPrefix = options.adminPrefix || `${options.prefix}/admin/mcp`;
 
+  // 默认关闭：未配置 authenticateAdmin 时管理端不鉴权
   const adminAuth = async request => {
-    if (typeof options.authenticateAdmin !== 'function') {
-      throw Object.assign(new Error('未配置 authenticateAdmin'), { statusCode: 500 });
+    if (typeof options.authenticateAdmin === 'function') {
+      await options.authenticateAdmin(request);
     }
-    await options.authenticateAdmin(request);
   };
 
   fastify.get(

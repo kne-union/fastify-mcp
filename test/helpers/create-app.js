@@ -2,7 +2,15 @@ const path = require('node:path');
 const Fastify = require('fastify');
 const fp = require('fastify-plugin');
 
-const createApp = async ({ guideMarkdownPath, guideRootDir, deny, authenticate, useDefaultGuide } = {}) => {
+const createApp = async ({
+  guideMarkdownPath,
+  guideRootDir,
+  deny,
+  authenticate,
+  authenticateAdmin,
+  useDefaultGuide,
+  disableAdminAuth
+} = {}) => {
   const fastify = Fastify({ logger: false });
 
   await fastify.register(require('@fastify/swagger'), {
@@ -79,11 +87,15 @@ const createApp = async ({ guideMarkdownPath, guideRootDir, deny, authenticate, 
       (async request => {
         request.userInfo = { id: 'u1' };
       }),
-    authenticateAdmin: async request => {
-      request.userInfo = { id: 'admin' };
-    },
     createInvokeHeaders: () => ({ 'x-test-auth': '1' })
   };
+  if (!disableAdminAuth) {
+    mcpOptions.authenticateAdmin =
+      authenticateAdmin ||
+      (async request => {
+        request.userInfo = { id: 'admin' };
+      });
+  }
   if (!useDefaultGuide) {
     mcpOptions.guideMarkdownPath = guideMarkdownPath || path.resolve(__dirname, '../../MCP.md');
     mcpOptions.guideRootDir = guideRootDir || path.resolve(__dirname, '../..');

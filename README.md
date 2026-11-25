@@ -53,9 +53,7 @@ await fastify.register(require('@kne/fastify-mcp'), {
   authenticate: async request => {
     // 校验 MCP Bearer，写入 request.userInfo
   },
-  authenticateAdmin: async request => {
-    // 超管鉴权，维护 allowlist
-  },
+  // authenticateAdmin 默认关闭；生产建议配置超管鉴权
   createInvokeHeaders: () => {
     // inject 调用业务接口时附加内部凭证
     return {};
@@ -66,7 +64,7 @@ await fastify.register(require('@kne/fastify-mcp'), {
 #### 注意事项
 
 1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
-2. `authenticate` 必填；管理端接口依赖 `authenticateAdmin`
+2. `authenticate` 必填；`authenticateAdmin` 默认关闭（管理端不鉴权），生产环境建议配置
 3. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
 4. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
 5. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
@@ -100,7 +98,7 @@ await fastify.register(require('@kne/fastify-mcp'), {
 | `instructions` | string | 内置短说明 | MCP initialize instructions |
 | `authenticate` | function | — | **必填**，MCP POST 认证，写入 `request.userInfo` |
 | `authenticateGuide` | function | 回退 `authenticate` | `GET .../mcp/guide` 认证 |
-| `authenticateAdmin` | function | — | allowlist / catalog 管理认证 |
+| `authenticateAdmin` | function | 关闭 | allowlist / catalog 管理认证；未配置时不鉴权 |
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
@@ -159,9 +157,7 @@ fastify.register(mcp, {
   authenticate: async request => {
     /* Bearer 校验后 request.userInfo = ... */
   },
-  authenticateAdmin: async request => {
-    /* 超管校验 */
-  },
+  // authenticateAdmin 默认关闭；生产建议配置超管鉴权
   createInvokeHeaders: ctx => ({ 'x-mcp-internal-auth': '...' }),
   registerExtraTools: (mcpServer, { ctx }) => {
     /* 如 get_report_pdf 等业务特例 */

@@ -125,3 +125,31 @@ describe('allowlist CRUD + sync', () => {
     expect(again.statusCode).to.equal(200);
   });
 });
+
+describe('authenticateAdmin default off', () => {
+  let app;
+
+  before(async () => {
+    app = await createApp({ disableAdminAuth: true });
+  });
+
+  after(async () => {
+    await app.close();
+  });
+
+  it('admin routes work without authenticateAdmin', async () => {
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/mcp/mcp-allowlist'
+    });
+    expect(listed.statusCode).to.equal(200);
+    expect(listed.json()).to.have.property('pageData');
+
+    const catalog = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/mcp/mcp-catalog/operations'
+    });
+    expect(catalog.statusCode).to.equal(200);
+    expect(catalog.json()).to.have.property('pageData');
+  });
+});

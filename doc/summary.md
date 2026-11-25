@@ -35,9 +35,7 @@ await fastify.register(require('@kne/fastify-mcp'), {
   authenticate: async request => {
     // 校验 MCP Bearer，写入 request.userInfo
   },
-  authenticateAdmin: async request => {
-    // 超管鉴权，维护 allowlist
-  },
+  // authenticateAdmin 默认关闭；生产建议配置超管鉴权
   createInvokeHeaders: () => {
     // inject 调用业务接口时附加内部凭证
     return {};
@@ -48,7 +46,7 @@ await fastify.register(require('@kne/fastify-mcp'), {
 #### 注意事项
 
 1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
-2. `authenticate` 必填；管理端接口依赖 `authenticateAdmin`
+2. `authenticate` 必填；`authenticateAdmin` 默认关闭（管理端不鉴权），生产环境建议配置
 3. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
 4. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
 5. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑

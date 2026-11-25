@@ -1,6 +1,9 @@
 const fp = require('fastify-plugin');
 const path = require('node:path');
 
+/** 默认 deny：密钥路径 + 导出类文件流接口（勿放入 allowlist） */
+const recommendDeny = ['**/client/secret/**', '**/secret/**', '**/export-**'];
+
 module.exports = fp(
   async (fastify, options) => {
     options = Object.assign(
@@ -10,7 +13,7 @@ module.exports = fp(
         prefix: '/api/v1',
         adminPrefix: null,
         dbTableNamePrefix: 't_mcp_',
-        deny: ['**/client/secret/**', '**/secret/**'],
+        deny: recommendDeny,
         catalogPathPrefix: undefined,
         serverInfo: { name: 'fastify-mcp', version: '0.1.0' },
         instructions: undefined,
@@ -91,6 +94,6 @@ module.exports = fp(
   }
 );
 
-module.exports.recommendDeny = ['**/client/secret/**', '**/secret/**', '**/export-**'];
+module.exports.recommendDeny = recommendDeny;
 module.exports.readGuideMarkdown = require('./libs/utils/guide').readGuideMarkdown;
 module.exports.buildDenyMatcher = require('./libs/utils/deny').isDenied;

@@ -92,7 +92,7 @@ const createApp = async ({
     prefix: '/api/v1',
     adminPrefix: '/api/v1/admin/mcp',
     dbTableNamePrefix: 't_mcp_',
-    deny: deny || ['**/client/secret/**', '**/secret/**'],
+    ...(deny ? { deny } : {}),
     authenticateUser:
       authenticateUser ||
       (async request => {

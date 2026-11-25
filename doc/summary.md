@@ -71,7 +71,7 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 3. `authenticateAdmin` 默认关闭（allowlist 管理端不鉴权），生产环境建议配置
 4. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
 5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库
-6. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
+6. 默认 `deny` 即 `recommendDeny`（密钥路径 + `**/export-**`）；业务通常不必再传；导出文件流等勿放入 allowlist，应用专用工具
 7. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
 8. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
 

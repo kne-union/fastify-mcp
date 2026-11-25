@@ -89,7 +89,7 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 3. `authenticateAdmin` 默认关闭（allowlist 管理端不鉴权），生产环境建议配置
 4. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
 5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库
-6. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
+6. 默认 `deny` 即 `recommendDeny`（密钥路径 + `**/export-**`）；业务通常不必再传；导出文件流等勿放入 allowlist，应用专用工具
 7. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
 8. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
 
@@ -110,7 +110,7 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 | `prefix` | string | `'/api/v1'` | MCP / guide / mcp-keys 路由前缀 |
 | `adminPrefix` | string | `` `${prefix}/admin/mcp` `` | allowlist / catalog 管理前缀 |
 | `dbTableNamePrefix` | string | `'t_mcp_'` | 表名前缀（allowlist、key） |
-| `deny` | string[] | 含 `secret` 相关规则 | 永远不对 MCP 开放的 path 规则 |
+| `deny` | string[] | `recommendDeny`（secret + export-**） | 永远不对 MCP 开放的 path 规则；未传即用推荐默认，业务一般不必再传 |
 | `catalogPathPrefix` | string | `undefined` | Catalog 仅保留此前缀下的 OpenAPI path |
 | `guideMarkdownPath` | string | `` `path.resolve(process.cwd(), 'MCP.md')` `` | 引导 Markdown；默认 Node 启动根目录下的 `MCP.md` |
 | `guideRootDir` | string | `process.cwd()` | 读文件允许根，防目录穿越；默认与启动根一致 |
@@ -186,7 +186,7 @@ fastify.register(mcp, {
   prefix: '/api/v1',
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
-  deny: mcp.recommendDeny,
+  // deny 默认即 recommendDeny，业务一般不必再传
   seedsDir: path.resolve(__dirname, './mcpSeeds'),
   authenticateUser: async request => {
     /* 登录校验后 request.userInfo = { id, ... } */

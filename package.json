@@ -41,6 +41,7 @@
   },
   "homepage": "https://github.com/kne-union/fastify-mcp#readme",
   "peerDependencies": {
+    "@kne/fastify-intl": ">=0.1.7",
     "@kne/fastify-namespace": "*",
     "@kne/fastify-sequelize": "*",
     "fastify-plugin": ">=5"
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@fastify/env": "^5.0.2",
     "@fastify/swagger": "^9.9.5",
+    "@kne/fastify-intl": "^0.1.7",
     "@kne/fastify-namespace": "^1.2.1",
     "@kne/fastify-sequelize": "^3.2.0",
     "chai": "^4.5.0",

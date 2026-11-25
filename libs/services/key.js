@@ -1,5 +1,6 @@
 const fp = require('fastify-plugin');
 const crypto = require('node:crypto');
+const { createAppError } = require('../utils/error');
 
 const SECRET_BYTES = 32;
 
@@ -17,6 +18,7 @@ const parseBearer = authorization => {
 
 module.exports = fp(async (fastify, options) => {
   const { models } = fastify[options.name];
+  const err = (messageId, statusCode, values) => createAppError(fastify, options.name, messageId, statusCode, values);
 
   const toPublic = record => ({
     id: String(record.id),
@@ -29,7 +31,7 @@ module.exports = fp(async (fastify, options) => {
   const create = async ({ subjectId, name } = {}) => {
     const sid = subjectId == null ? '' : String(subjectId).trim();
     if (!sid) {
-      throw Object.assign(new Error('缺少 subjectId'), { statusCode: 400 });
+      throw err('subjectIdRequired', 400);
     }
     const secret = crypto.randomBytes(SECRET_BYTES).toString('hex');
     const row = await models.key.create({
@@ -48,7 +50,7 @@ module.exports = fp(async (fastify, options) => {
   const list = async ({ subjectId, perPage = 20, currentPage = 1 } = {}) => {
     const sid = subjectId == null ? '' : String(subjectId).trim();
     if (!sid) {
-      throw Object.assign(new Error('缺少 subjectId'), { statusCode: 400 });
+      throw err('subjectIdRequired', 400);
     }
     const { count, rows } = await models.key.findAndCountAll({
       where: { subjectId: sid },
@@ -66,29 +68,26 @@ module.exports = fp(async (fastify, options) => {
     const sid = subjectId == null ? '' : String(subjectId).trim();
     const keyId = id == null ? '' : String(id).trim();
     if (!sid || !keyId) {
-      throw Object.assign(new Error('缺少 subjectId 或 id'), { statusCode: 400 });
+      throw err('subjectIdOrIdRequired', 400);
     }
     const row = await models.key.findOne({ where: { id: keyId, subjectId: sid } });
     if (!row) {
-      throw Object.assign(new Error('密钥不存在'), { statusCode: 404 });
+      throw err('keyNotFound', 404);
     }
     await row.destroy();
     return {};
   };
 
-  /**
-   * 校验 Bearer keyId.secret，返回 { key }；失败抛 401。
-   */
   const verifyBearer = async authorization => {
     const parsed = parseBearer(authorization);
     if (!parsed) {
-      throw Object.assign(new Error('认证失败'), { statusCode: 401 });
+      throw err('authenticationFailed', 401);
     }
     const row = await models.key.findByPk(parsed.keyId);
     const expected = Buffer.from(row?.secretHash || '');
     const actual = Buffer.from(hashSecret(parsed.secret));
     if (!row || expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-      throw Object.assign(new Error('认证失败'), { statusCode: 401 });
+      throw err('authenticationFailed', 401);
     }
     return {
       key: {

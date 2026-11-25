@@ -2,6 +2,7 @@ const fp = require('fastify-plugin');
 const { findSwaggerOperation, normalizeMethod, operationKey } = require('../utils/openapi');
 const { isDenied } = require('../utils/deny');
 const { loadSeedItems } = require('../utils/seeds');
+const { createAppError } = require('../utils/error');
 
 const toRow = record => ({
   id: String(record.id),
@@ -19,19 +20,20 @@ const toRow = record => ({
 module.exports = fp(async (fastify, options) => {
   const { models } = fastify[options.name];
   const { Op } = fastify.sequelize.Sequelize;
+  const err = (messageId, statusCode, values) => createAppError(fastify, options.name, messageId, statusCode, values);
 
   const getSwagger = () => (typeof options.getSwagger === 'function' ? options.getSwagger() : fastify.swagger());
 
   const assertNotDenied = apiPath => {
     if (isDenied(apiPath, options.deny || [])) {
-      throw Object.assign(new Error('该接口在 deny 列表中，不能加入 allowlist'), { statusCode: 400 });
+      throw err('pathDenied', 400);
     }
   };
 
   const resolveAgainstSwagger = ({ operationId, method, path: apiPath }) => {
     const hit = findSwaggerOperation(getSwagger(), { operationId, method, path: apiPath });
     if (!hit) {
-      throw Object.assign(new Error('OpenAPI 中不存在该接口'), { statusCode: 400 });
+      throw err('openapiNotFound', 400);
     }
     assertNotDenied(hit.path);
     return hit;
@@ -64,7 +66,7 @@ module.exports = fp(async (fastify, options) => {
   const get = async ({ id }) => {
     const row = await models.allowlist.findByPk(id);
     if (!row) {
-      throw Object.assign(new Error('allowlist 记录不存在'), { statusCode: 404 });
+      throw err('allowlistNotFound', 404);
     }
     return toRow(row);
   };
@@ -98,7 +100,7 @@ module.exports = fp(async (fastify, options) => {
   const patch = async ({ id, ...body }) => {
     const row = await models.allowlist.findByPk(id);
     if (!row) {
-      throw Object.assign(new Error('allowlist 记录不存在'), { statusCode: 404 });
+      throw err('allowlistNotFound', 404);
     }
     const next = {};
     if (body.scenarios !== undefined) {
@@ -120,7 +122,7 @@ module.exports = fp(async (fastify, options) => {
   const remove = async ({ id }) => {
     const row = await models.allowlist.findByPk(id);
     if (!row) {
-      throw Object.assign(new Error('allowlist 记录不存在'), { statusCode: 404 });
+      throw err('allowlistNotFound', 404);
     }
     await row.destroy();
     return {};

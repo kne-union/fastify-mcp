@@ -1,4 +1,5 @@
 const fp = require('fastify-plugin');
+const { sendTranslatedError } = require('../utils/error');
 
 module.exports = fp(async (fastify, options) => {
   const { services } = fastify[options.name];
@@ -10,8 +11,6 @@ module.exports = fp(async (fastify, options) => {
       await options.authenticateAdmin(request);
     }
   };
-
-  const sendError = (reply, e) => reply.code(e.statusCode || 500).send({ error: e.message || String(e) });
 
   fastify.get(
     `${adminPrefix}/mcp-allowlist`,
@@ -39,7 +38,7 @@ module.exports = fp(async (fastify, options) => {
         if (query.enabled === 'false') query.enabled = false;
         return await services.allowlist.list(query);
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -54,7 +53,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.get({ id: request.params.id });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -83,7 +82,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.create(request.body || {});
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -110,7 +109,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.patch({ id: request.params.id, ...(request.body || {}) });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -125,7 +124,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.remove({ id: request.params.id });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -150,7 +149,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.batchUpsert(request.body || {});
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -165,7 +164,7 @@ module.exports = fp(async (fastify, options) => {
       try {
         return await services.allowlist.sync();
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );

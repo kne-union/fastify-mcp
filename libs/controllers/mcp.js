@@ -3,21 +3,23 @@ const { McpServer } = require('@modelcontextprotocol/server');
 const { NodeStreamableHTTPServerTransport } = require('@modelcontextprotocol/node');
 const { registerCoreTools } = require('../utils/register-tools');
 const { readGuideMarkdown } = require('../utils/guide');
+const { createAppError, sendTranslatedError } = require('../utils/error');
 
 module.exports = fp(async (fastify, options) => {
   const { services } = fastify[options.name];
   const mcpPath = `${options.prefix}/mcp`;
   const guidePath = `${options.prefix}/mcp/guide`;
+  const err = (messageId, statusCode) => createAppError(fastify, options.name, messageId, statusCode);
 
   // 库内固定 Bearer 鉴权，业务不可覆盖
   const runAuthenticate = async request => {
     if (typeof options.resolveUser !== 'function') {
-      throw Object.assign(new Error('未配置 resolveUser'), { statusCode: 500 });
+      throw err('resolveUserRequired', 500);
     }
     const { key } = await services.key.verifyBearer(request.headers.authorization);
     const userInfo = await options.resolveUser(key.subjectId);
     if (!userInfo) {
-      throw Object.assign(new Error('认证失败'), { statusCode: 401 });
+      throw err('authenticationFailed', 401);
     }
     request.userInfo = userInfo;
     request.mcpKey = key;
@@ -43,7 +45,8 @@ module.exports = fp(async (fastify, options) => {
         reply.type('text/markdown; charset=utf-8');
         return reply.send(doc.content);
       } catch (e) {
-        return reply.code(e.statusCode || 500).send({ error: e.message || String(e) });
+        const mapped = e.messageId ? err(e.messageId, e.statusCode || 500) : e;
+        return sendTranslatedError(fastify, request, reply, mapped);
       }
     }
   );

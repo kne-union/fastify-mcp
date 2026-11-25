@@ -1,22 +1,22 @@
 const fp = require('fastify-plugin');
+const { createAppError, sendTranslatedError } = require('../utils/error');
 
 module.exports = fp(async (fastify, options) => {
   const { services } = fastify[options.name];
   const keysPath = `${options.prefix}/mcp-keys`;
+  const err = (messageId, statusCode) => createAppError(fastify, options.name, messageId, statusCode);
 
   const requireUserAuth = async request => {
     if (typeof options.authenticateUser !== 'function') {
-      throw Object.assign(new Error('未配置 authenticateUser'), { statusCode: 500 });
+      throw err('authenticateUserRequired', 500);
     }
     await options.authenticateUser(request);
     if (!request.userInfo || request.userInfo.id == null || request.userInfo.id === '') {
-      throw Object.assign(new Error('authenticateUser 须写入 request.userInfo.id'), { statusCode: 500 });
+      throw err('authenticateUserMissingId', 500);
     }
   };
 
   const subjectIdOf = request => String(request.userInfo.id);
-
-  const sendError = (reply, e) => reply.code(e.statusCode || 500).send({ error: e.message || String(e) });
 
   fastify.post(
     keysPath,
@@ -40,7 +40,7 @@ module.exports = fp(async (fastify, options) => {
           name: request.body?.name
         });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -69,7 +69,7 @@ module.exports = fp(async (fastify, options) => {
           currentPage: request.query?.currentPage
         });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );
@@ -90,7 +90,7 @@ module.exports = fp(async (fastify, options) => {
           id: request.params.id
         });
       } catch (e) {
-        return sendError(reply, e);
+        return sendTranslatedError(fastify, request, reply, e);
       }
     }
   );

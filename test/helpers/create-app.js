@@ -73,6 +73,10 @@ const createApp = async ({
     })
   );
 
+  await fastify.register(require('@kne/fastify-intl'), {
+    defaultLocale: 'zh-CN'
+  });
+
   await fastify.register(require('@kne/fastify-sequelize'), {
     db: {
       dialect: 'sqlite',

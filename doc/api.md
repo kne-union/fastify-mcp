@@ -25,6 +25,8 @@
 
 MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`），**不提供**业务可覆盖的 `authenticate`。
 
+须先注册 `@kne/fastify-intl`；本插件通过 namespace `locale` 挂载 `zh-CN` / `en-US`，service 内用 `fastify.intl.createError` 抛错，按请求语言翻译。
+
 #### 命名空间注册
 
 本插件通过 `@kne/fastify-namespace` 注册到 `options.name`（默认 `mcp`）命名空间。常用访问：
@@ -72,6 +74,8 @@ MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`）
 ```javascript
 const path = require('node:path');
 const mcp = require('@kne/fastify-mcp');
+
+await fastify.register(require('@kne/fastify-intl'), { defaultLocale: 'zh-CN' });
 
 fastify.register(mcp, {
   name: 'mcp',

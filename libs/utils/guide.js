@@ -3,14 +3,19 @@ const path = require('node:path');
 
 const DEFAULT_MAX_BYTES = 256 * 1024;
 
+const guideError = (messageId, statusCode) => {
+  const error = new Error(messageId);
+  error.statusCode = statusCode;
+  error.messageId = messageId;
+  return error;
+};
+
 /**
  * 安全读取引导 Markdown：只读配置路径，realpath 必须落在 rootDir 下。
  */
 const readGuideMarkdown = async ({ guideMarkdownPath, guideRootDir, maxGuideBytes = DEFAULT_MAX_BYTES }) => {
   if (!guideMarkdownPath) {
-    const error = new Error('guideMarkdownPath 未配置');
-    error.statusCode = 404;
-    throw error;
+    throw guideError('guideNotConfigured', 404);
   }
   const root = path.resolve(guideRootDir || path.dirname(guideMarkdownPath));
   const resolved = path.resolve(guideMarkdownPath);
@@ -19,33 +24,23 @@ const readGuideMarkdown = async ({ guideMarkdownPath, guideRootDir, maxGuideByte
   try {
     realRoot = await fs.realpath(root);
   } catch {
-    const error = new Error('引导文档根目录不存在');
-    error.statusCode = 404;
-    throw error;
+    throw guideError('guideFileMissing', 404);
   }
   try {
     realFile = await fs.realpath(resolved);
   } catch {
-    const error = new Error('引导文档不存在');
-    error.statusCode = 404;
-    throw error;
+    throw guideError('guideFileMissing', 404);
   }
   const relative = path.relative(realRoot, realFile);
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    const error = new Error('引导文档路径非法');
-    error.statusCode = 400;
-    throw error;
+    throw guideError('guidePathEscape', 400);
   }
   const stat = await fs.stat(realFile);
   if (!stat.isFile()) {
-    const error = new Error('引导文档不是文件');
-    error.statusCode = 404;
-    throw error;
+    throw guideError('guideNotFile', 404);
   }
   if (stat.size > maxGuideBytes) {
-    const error = new Error(`引导文档超过大小限制（${maxGuideBytes} 字节）`);
-    error.statusCode = 413;
-    throw error;
+    throw guideError('guideTooLarge', 413);
   }
   const content = await fs.readFile(realFile, 'utf8');
   return { content, path: realFile, bytes: Buffer.byteLength(content, 'utf8') };

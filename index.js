@@ -34,6 +34,9 @@ module.exports = fp(
       options
     );
 
+    if (!fastify.intl || typeof fastify.intl.createError !== 'function') {
+      throw new Error('@kne/fastify-mcp requires @kne/fastify-intl to be registered first');
+    }
     if (typeof options.resolveUser !== 'function') {
       throw new Error('@kne/fastify-mcp: resolveUser 必填');
     }
@@ -62,11 +65,12 @@ module.exports = fp(
             prefix: options.dbTableNamePrefix
           })
         ],
-        ['services', path.resolve(__dirname, './libs/services')]
+        ['services', path.resolve(__dirname, './libs/services')],
+        ['locale', require('./libs/locale')]
       ]
     });
 
-    // 对齐 fastify-message：sync 完成后从业务 seedsDir 导入 allowlist
+    // sync 完成后从业务 seedsDir 导入 allowlist
     fastify.register(
       fp(async (fastify, options) => {
         const ns = fastify[options.name];

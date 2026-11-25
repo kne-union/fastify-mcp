@@ -27,6 +27,7 @@ const fastify = require('fastify')();
 await fastify.register(require('@fastify/swagger'), {
   openapi: { info: { title: 'app', version: '1.0.0' } }
 });
+await fastify.register(require('@kne/fastify-intl'), { defaultLocale: 'zh-CN' });
 await fastify.register(require('@kne/fastify-sequelize'), {
   db: { dialect: 'sqlite', storage: './data.sqlite' }
 });
@@ -65,8 +66,8 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 
 #### 注意事项
 
-1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
-2. `resolveUser`、`authenticateUser` 必填；MCP 进门鉴权由库固定实现，业务不可覆盖
+1. 须先注册 `@kne/fastify-intl`、`@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
+2. `resolveUser`、`authenticateUser` 必填；MCP 进门鉴权由库固定实现，业务不可覆盖；错误文案通过 intl 语言包（`zh-CN` / `en-US`）翻译
 3. `authenticateAdmin` 默认关闭（allowlist 管理端不鉴权），生产环境建议配置
 4. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
 5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库

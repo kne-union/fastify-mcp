@@ -73,17 +73,17 @@ module.exports = fp(
       ]
     });
 
-    // sync 完成后从业务 seedsDir 导入 allowlist
+    // sync 完成后从业务 seedsDir 导入 allowlist（同 fastify-message 的 templateDir 写法）
     fastify.register(
       fp(async (fastify, options) => {
-        const ns = fastify[options.name];
-        ns.seedsReady = options.seedsDir
-          ? fastify.sequelize.syncPromise
-              .then(() => ns.services.allowlist.includeSeeds(options.seedsDir))
-              .catch(e => {
-                fastify.log.error(e, '[fastify-mcp] includeSeeds 失败');
-              })
-          : Promise.resolve();
+        const { services } = fastify[options.name];
+        fastify.sequelize.syncPromise
+          .then(async () => {
+            if (options.seedsDir) {
+              await services.allowlist.includeSeeds(options.seedsDir);
+            }
+          })
+          .catch(e => fastify.log.error(e, '[fastify-mcp] includeSeeds 失败'));
       }),
       options
     );

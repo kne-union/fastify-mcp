@@ -131,7 +131,10 @@ const createApp = async ({
 
   await fastify.ready();
   await fastify.sequelize.syncPromise;
-  await fastify.mcp.seedsReady;
+  // 与 message 测试一致：插件侧 fire-and-forget，测试里显式再 import 一次保证就绪
+  if (seedsDir) {
+    await fastify.mcp.services.allowlist.includeSeeds(seedsDir);
+  }
 
   const issueKey = async ({ userId = 'u1', name = 'test-key' } = {}) => {
     const created = await fastify.inject({

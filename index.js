@@ -20,8 +20,10 @@ module.exports = fp(
         maxGuideBytes: 256 * 1024,
         maxDescribeGuideChars: 8000,
         bodyLimit: 15 * 1024 * 1024,
-        authenticate: undefined,
-        authenticateGuide: undefined,
+        // MCP 进门鉴权由库固定 Bearer 实现；业务只提供 resolveUser
+        resolveUser: undefined,
+        // 密钥管理页登录鉴权，须写入 request.userInfo.id
+        authenticateUser: undefined,
         authenticateAdmin: undefined,
         createInvokeHeaders: undefined,
         registerExtraTools: undefined,
@@ -31,6 +33,13 @@ module.exports = fp(
       },
       options
     );
+
+    if (typeof options.resolveUser !== 'function') {
+      throw new Error('@kne/fastify-mcp: resolveUser 必填');
+    }
+    if (typeof options.authenticateUser !== 'function') {
+      throw new Error('@kne/fastify-mcp: authenticateUser 必填');
+    }
 
     if (!options.adminPrefix) {
       options.adminPrefix = `${options.prefix}/admin/mcp`;

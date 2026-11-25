@@ -15,7 +15,12 @@ describe('guide', () => {
   it('plugin defaults guideMarkdownPath to cwd/MCP.md', async () => {
     const { createApp } = require('./helpers/create-app');
     const app = await createApp({ useDefaultGuide: true });
-    const res = await app.inject({ method: 'GET', url: '/api/v1/mcp/guide' });
+    const key = await app.issueKey();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mcp/guide',
+      headers: { authorization: key.authorization }
+    });
     expect(res.statusCode).to.equal(200);
     expect(res.body).to.include('describe_capabilities');
     await app.close();

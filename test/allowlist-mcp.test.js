@@ -13,9 +13,11 @@ const parseSseJson = body => {
 
 describe('allowlist + mcp tools', () => {
   let app;
+  let authorization;
 
   before(async () => {
     app = await createApp();
+    authorization = (await app.issueKey()).authorization;
   });
 
   after(async () => {
@@ -53,15 +55,25 @@ describe('allowlist + mcp tools', () => {
     expect(batch.statusCode).to.equal(200);
     expect(batch.json().totalCount).to.equal(2);
 
-    const guide = await app.inject({ method: 'GET', url: '/api/v1/mcp/guide' });
+    const guide = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mcp/guide',
+      headers: { authorization }
+    });
     expect(guide.statusCode).to.equal(200);
     expect(guide.headers['content-type']).to.match(/markdown/);
     expect(guide.body).to.include('search_apis');
 
+    const mcpHeaders = {
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+      authorization
+    };
+
     const init = await app.inject({
       method: 'POST',
       url: '/api/v1/mcp',
-      headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+      headers: mcpHeaders,
       payload: {
         jsonrpc: '2.0',
         id: 1,
@@ -74,7 +86,7 @@ describe('allowlist + mcp tools', () => {
     const tools = await app.inject({
       method: 'POST',
       url: '/api/v1/mcp',
-      headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+      headers: mcpHeaders,
       payload: { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }
     });
     const toolsBody = tools.headers['content-type']?.includes('event-stream') ? parseSseJson(tools.body) : tools.json();
@@ -84,7 +96,7 @@ describe('allowlist + mcp tools', () => {
     const search = await app.inject({
       method: 'POST',
       url: '/api/v1/mcp',
-      headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+      headers: mcpHeaders,
       payload: {
         jsonrpc: '2.0',
         id: 3,
@@ -99,7 +111,7 @@ describe('allowlist + mcp tools', () => {
     const denyInvoke = await app.inject({
       method: 'POST',
       url: '/api/v1/mcp',
-      headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+      headers: mcpHeaders,
       payload: {
         jsonrpc: '2.0',
         id: 4,
@@ -116,7 +128,7 @@ describe('allowlist + mcp tools', () => {
     const okInvoke = await app.inject({
       method: 'POST',
       url: '/api/v1/mcp',
-      headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+      headers: mcpHeaders,
       payload: {
         jsonrpc: '2.0',
         id: 5,

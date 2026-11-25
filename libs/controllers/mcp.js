@@ -9,18 +9,24 @@ module.exports = fp(async (fastify, options) => {
   const mcpPath = `${options.prefix}/mcp`;
   const guidePath = `${options.prefix}/mcp/guide`;
 
-  const runAuthenticate = async (request, kind) => {
-    const hook = kind === 'guide' ? options.authenticateGuide || options.authenticate : options.authenticate;
-    if (typeof hook !== 'function') {
-      throw Object.assign(new Error('未配置 authenticate'), { statusCode: 500 });
+  // 库内固定 Bearer 鉴权，业务不可覆盖
+  const runAuthenticate = async request => {
+    if (typeof options.resolveUser !== 'function') {
+      throw Object.assign(new Error('未配置 resolveUser'), { statusCode: 500 });
     }
-    await hook(request);
+    const { key } = await services.key.verifyBearer(request.headers.authorization);
+    const userInfo = await options.resolveUser(key.subjectId);
+    if (!userInfo) {
+      throw Object.assign(new Error('认证失败'), { statusCode: 401 });
+    }
+    request.userInfo = userInfo;
+    request.mcpKey = key;
   };
 
   fastify.get(
     guidePath,
     {
-      onRequest: [async request => runAuthenticate(request, 'guide')],
+      onRequest: [runAuthenticate],
       schema: {
         tags: ['MCP'],
         summary: 'MCP 安装/使用引导 Markdown（读项目根 MCP.md）',
@@ -50,7 +56,7 @@ module.exports = fp(async (fastify, options) => {
   fastify.post(
     mcpPath,
     {
-      onRequest: [async request => runAuthenticate(request, 'mcp')],
+      onRequest: [runAuthenticate],
       bodyLimit: options.bodyLimit || 15 * 1024 * 1024,
       schema: {
         tags: ['MCP'],
@@ -72,6 +78,7 @@ module.exports = fp(async (fastify, options) => {
       const ctx = {
         userInfo: request.userInfo,
         openApiPayload: request.openApiPayload,
+        mcpKey: request.mcpKey,
         request
       };
       registerCoreTools(mcpServer, { services, ctx });

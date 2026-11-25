@@ -3,9 +3,9 @@
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `name` | string | `'mcp'` | 命名空间，通过 `fastify.<name>` 访问 |
-| `prefix` | string | `'/api/v1'` | MCP / guide 路由前缀 |
+| `prefix` | string | `'/api/v1'` | MCP / guide / mcp-keys 路由前缀 |
 | `adminPrefix` | string | `` `${prefix}/admin/mcp` `` | allowlist / catalog 管理前缀 |
-| `dbTableNamePrefix` | string | `'t_mcp_'` | allowlist 表名前缀 |
+| `dbTableNamePrefix` | string | `'t_mcp_'` | 表名前缀（allowlist、key） |
 | `deny` | string[] | 含 `secret` 相关规则 | 永远不对 MCP 开放的 path 规则 |
 | `catalogPathPrefix` | string | `undefined` | Catalog 仅保留此前缀下的 OpenAPI path |
 | `guideMarkdownPath` | string | `` `path.resolve(process.cwd(), 'MCP.md')` `` | 引导 Markdown；默认 Node 启动根目录下的 `MCP.md` |
@@ -15,22 +15,25 @@
 | `bodyLimit` | number | `15MB` | MCP POST body 上限 |
 | `serverInfo` | object | `{ name, version }` | MCP initialize 的 serverInfo |
 | `instructions` | string | 内置短说明 | MCP initialize instructions |
-| `authenticate` | function | — | **必填**，MCP POST 认证，写入 `request.userInfo` |
-| `authenticateGuide` | function | 回退 `authenticate` | `GET .../mcp/guide` 认证 |
+| `resolveUser` | function | — | **必填**，`(subjectId) => userInfo`；Bearer 验签后写入 `request.userInfo` |
+| `authenticateUser` | function | — | **必填**，密钥管理页登录鉴权，须写入 `request.userInfo.id` |
 | `authenticateAdmin` | function | 关闭 | allowlist / catalog 管理认证；未配置时不鉴权 |
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
 | `seedsDir` | string | `null` | 业务仓 allowlist 种子目录（对齐 `message.templateDir`）；sync 后自动 `includeSeeds` |
 
+MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`），**不提供**业务可覆盖的 `authenticate`。
+
 #### 命名空间注册
 
 本插件通过 `@kne/fastify-namespace` 注册到 `options.name`（默认 `mcp`）命名空间。常用访问：
 
 - `fastify.mcp.services.allowlist` — allowlist CRUD / sync / `includeSeeds`
+- `fastify.mcp.services.key` — MCP 密钥 create / list / remove / verifyBearer
 - `fastify.mcp.services.capability` — 索引 / 搜索 / describe
 - `fastify.mcp.services.invoke` — `callApi`
-- `fastify.mcp.models.allowlist` — 数据模型
+- `fastify.mcp.models.allowlist` / `fastify.mcp.models.key` — 数据模型
 
 导出辅助：
 
@@ -41,9 +44,12 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `{prefix}/mcp` | MCP Streamable HTTP（无状态） |
+| `POST` | `{prefix}/mcp` | MCP Streamable HTTP（无状态）；须 Bearer |
 | `GET` / `DELETE` | `{prefix}/mcp` | 固定 405 |
-| `GET` | `{prefix}/mcp/guide` | 返回引导 Markdown |
+| `GET` | `{prefix}/mcp/guide` | 返回引导 Markdown；须 Bearer |
+| `POST` | `{prefix}/mcp-keys` | 创建密钥（明文 secret 仅一次）；须 `authenticateUser` |
+| `GET` | `{prefix}/mcp-keys` | 当前用户密钥列表（secret 打码） |
+| `DELETE` | `{prefix}/mcp-keys/:id` | 删除（作废）密钥 |
 | `GET` | `{adminPrefix}/mcp-catalog/operations` | OpenAPI 候选目录（含 enabled） |
 | `GET` | `{adminPrefix}/mcp-allowlist` | allowlist 分页列表 |
 | `GET` | `{adminPrefix}/mcp-allowlist/:id` | 详情 |
@@ -73,11 +79,12 @@ fastify.register(mcp, {
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
   deny: mcp.recommendDeny,
-  // 业务仓种子目录，建议 ./mcpSeeds（内放 .js / .json 数组）
   seedsDir: path.resolve(__dirname, './mcpSeeds'),
-  // 默认读取 process.cwd()/MCP.md，一般无需再配 guideMarkdownPath
-  authenticate: async request => {
-    /* Bearer 校验后 request.userInfo = ... */
+  authenticateUser: async request => {
+    /* 登录校验后 request.userInfo = { id, ... } */
+  },
+  resolveUser: async subjectId => {
+    return await userModel.findByPk(subjectId);
   },
   // authenticateAdmin 默认关闭；生产建议配置超管鉴权
   createInvokeHeaders: ctx => ({ 'x-mcp-internal-auth': '...' }),
@@ -85,10 +92,16 @@ fastify.register(mcp, {
     /* 如 get_report_pdf 等业务特例 */
   }
 });
-
-// 也可手动：
-// await fastify.mcp.services.allowlist.includeSeeds(path.resolve(__dirname, './mcpSeeds'));
 ```
+
+#### 密钥约定
+
+| 项 | 说明 |
+|----|------|
+| Bearer | `Authorization: Bearer <keyId>.<secret>` |
+| 存储 | 仅存 `sha256(secret)`；创建响应含一次性明文 secret |
+| 主体 | `subjectId = String(request.userInfo.id)`（由 `authenticateUser` 写入） |
+| 作废 | `DELETE {prefix}/mcp-keys/:id` |
 
 #### seedsDir 约定
 

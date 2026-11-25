@@ -6,13 +6,19 @@ const createApp = async ({
   guideMarkdownPath,
   guideRootDir,
   deny,
-  authenticate,
   authenticateAdmin,
+  authenticateUser,
+  resolveUser,
   useDefaultGuide,
   disableAdminAuth,
-  seedsDir
+  seedsDir,
+  users
 } = {}) => {
   const fastify = Fastify({ logger: false });
+  const userStore = users || {
+    u1: { id: 'u1', name: 'user-1' },
+    admin: { id: 'admin', name: 'admin' }
+  };
 
   await fastify.register(require('@fastify/swagger'), {
     openapi: {
@@ -83,10 +89,17 @@ const createApp = async ({
     adminPrefix: '/api/v1/admin/mcp',
     dbTableNamePrefix: 't_mcp_',
     deny: deny || ['**/client/secret/**', '**/secret/**'],
-    authenticate:
-      authenticate ||
+    authenticateUser:
+      authenticateUser ||
       (async request => {
-        request.userInfo = { id: 'u1' };
+        const header = String(request.headers['x-test-user'] || 'u1');
+        request.userInfo = userStore[header] || { id: header };
+      }),
+    resolveUser:
+      resolveUser ||
+      (async subjectId => {
+        const id = String(subjectId);
+        return userStore[id] || { id };
       }),
     createInvokeHeaders: () => ({ 'x-test-auth': '1' })
   };
@@ -115,6 +128,25 @@ const createApp = async ({
   await fastify.ready();
   await fastify.sequelize.syncPromise;
   await fastify.mcp.seedsReady;
+
+  const issueKey = async ({ userId = 'u1', name = 'test-key' } = {}) => {
+    const created = await fastify.inject({
+      method: 'POST',
+      url: '/api/v1/mcp-keys',
+      headers: { 'x-test-user': userId },
+      payload: { name }
+    });
+    if (created.statusCode !== 200) {
+      throw new Error(`issueKey failed: ${created.statusCode} ${created.body}`);
+    }
+    const body = created.json();
+    return {
+      ...body,
+      authorization: `Bearer ${body.id}.${body.secret}`
+    };
+  };
+
+  fastify.issueKey = issueKey;
   return fastify;
 };
 

@@ -62,6 +62,5 @@ module.exports = fp(
 );
 
 module.exports.recommendDeny = ['**/client/secret/**', '**/secret/**', '**/export-**'];
-module.exports.flowupRecommendedAllowlist = require('./libs/seeds/flowup-recommended');
 module.exports.readGuideMarkdown = require('./libs/utils/guide').readGuideMarkdown;
 module.exports.buildDenyMatcher = require('./libs/utils/deny').isDenied;

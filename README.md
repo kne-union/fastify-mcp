@@ -115,7 +115,6 @@ await fastify.register(require('@kne/fastify-mcp'), {
 导出辅助：
 
 - `require('@kne/fastify-mcp').recommendDeny`
-- `require('@kne/fastify-mcp').flowupRecommendedAllowlist`
 - `require('@kne/fastify-mcp').readGuideMarkdown`
 
 #### HTTP 路由
@@ -164,9 +163,9 @@ fastify.register(mcp, {
   }
 });
 
-// 首次导入推荐种子（flowup 场景）
+// 业务侧自备 allowlist 种子，经管理接口导入，例如：
 // PUT /api/v1/admin/mcp/mcp-allowlist/batch
-// body: { items: mcp.flowupRecommendedAllowlist }
+// body: { items: [{ method, path, scenarios, confirm }, ...] }
 ```
 
 #### 规则说明

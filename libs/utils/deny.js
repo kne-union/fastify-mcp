@@ -15,7 +15,16 @@ const matchRule = (path, rule) => {
   if (pattern.includes('**')) {
     const parts = pattern.split('**').map(part => part.replace(/\*/g, '[^/]*'));
     const re = new RegExp(`^${parts.join('.*')}$`);
-    return re.test(value);
+    if (re.test(value)) {
+      return true;
+    }
+    // `**/secret/` 也匹配以 /secret 结尾（无尾斜杠）
+    if (pattern.endsWith('/')) {
+      const leaf = pattern.replace(/\/+$/, '');
+      const leafParts = leaf.split('**').map(part => part.replace(/\*/g, '[^/]*'));
+      return new RegExp(`^${leafParts.join('.*')}$`).test(value);
+    }
+    return false;
   }
   if (pattern.endsWith('/')) {
     return value.includes(pattern) || value.endsWith(pattern.slice(0, -1));

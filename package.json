@@ -1,7 +1,7 @@
 {
   "name": "@kne/fastify-mcp",
   "version": "0.1.0",
-  "description": "Fastify MCP host plugin: Streamable HTTP, OpenAPI index, global allowlist REST, install guide MD",
+  "description": "Fastify MCP 宿主插件：Streamable HTTP、OpenAPI 能力索引、全局 allowlist REST、安装引导 Markdown",
   "main": "index.js",
   "scripts": {
     "init": "husky",

@@ -64,13 +64,24 @@ module.exports = [
 
 Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/guide`；密钥由登录用户通过 `POST {prefix}/mcp-keys` 签发。
 
+#### Agent 使用指引（业务接入必读）
+
+接入方与 Agent 均应按下列约定使用三工具，避免「目录为空 / 找不到接口 / 调错接口」：
+
+1. **顺序**：`describe_capabilities` → `search_apis` → `call_api mode=schema` → `call_api mode=invoke`。不要凭记忆拼 path。
+2. **禁止只靠无参 `search_apis`**：不传 `query` / `tag` / `scenario` 时返回按场景分组的目录，**每个场景最多展示 5 条**。接口多时目录会严重不全，必须带关键词搜索。
+3. **allowlist 必须写 `scenarios`**：种子或 REST 创建时为每条接口设置场景标签（如「面试进度」「创建项目」）。`scenarios` 为空时全部落入「未分类」，目录与 `describe_capabilities` 快照几乎不可用；且 `search_apis` 的 `query` 会匹配 scenarios 文本，场景名即检索词。
+4. **检索词要对齐业务语义**：用场景名或接口 summary 里会出现的词；避免过宽单字（例如只搜「进度」可能命中无关的 progress 接口）。业务引导 `MCP.md` 应写清推荐 `scenario` / `query`，**不必罗列具体 path**。
+5. **写操作**：allowlist `confirm=true` 时，Agent 须先向用户确认再传 `userConfirmed=true`。
+6. **文件流 / 二进制**：默认 deny 已挡住 `**/export-**` 等；报告下载、上传等用 `registerExtraTools` 专用工具，不要塞进通用 `call_api`。
+
 #### 注意事项
 
 1. 须先注册 `@kne/fastify-intl`、`@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
 2. `resolveUser`、`authenticateUser` 必填；MCP 进门鉴权由库固定实现，业务不可覆盖；错误文案通过 intl 语言包（`zh-CN` / `en-US`）翻译
 3. `authenticateAdmin` 默认关闭（allowlist 管理端不鉴权），生产环境建议配置
 4. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
-5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库
+5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库；种子务必带 `scenarios`
 6. 默认 `deny` 即 `recommendDeny`（密钥路径 + `**/export-**`）；业务通常不必再传；导出文件流等勿放入 allowlist，应用专用工具
 7. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
 8. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节

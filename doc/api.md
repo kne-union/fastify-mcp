@@ -6,7 +6,7 @@
 | `prefix` | string | `'/api/v1'` | MCP / guide / mcp-keys 路由前缀 |
 | `adminPrefix` | string | `` `${prefix}/admin/mcp` `` | allowlist / catalog 管理前缀 |
 | `dbTableNamePrefix` | string | `'t_mcp_'` | 表名前缀（allowlist、key） |
-| `deny` | string[] | 含 `secret` 相关规则 | 永远不对 MCP 开放的 path 规则 |
+| `deny` | string[] | `recommendDeny`（secret + export-**） | 永远不对 MCP 开放的 path 规则；未传即用推荐默认，业务一般不必再传 |
 | `catalogPathPrefix` | string | `undefined` | Catalog 仅保留此前缀下的 OpenAPI path |
 | `guideMarkdownPath` | string | `` `path.resolve(process.cwd(), 'MCP.md')` `` | 引导 Markdown；默认 Node 启动根目录下的 `MCP.md` |
 | `guideRootDir` | string | `process.cwd()` | 读文件允许根，防目录穿越；默认与启动根一致 |
@@ -82,7 +82,7 @@ fastify.register(mcp, {
   prefix: '/api/v1',
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
-  deny: mcp.recommendDeny,
+  // deny 默认即 recommendDeny，业务一般不必再传
   seedsDir: path.resolve(__dirname, './mcpSeeds'),
   authenticateUser: async request => {
     /* 登录校验后 request.userInfo = { id, ... } */

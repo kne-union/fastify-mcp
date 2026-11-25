@@ -1,3 +1,5 @@
+const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { expect } = require('chai');
 const { readGuideMarkdown } = require('../libs/utils/guide');
@@ -28,14 +30,20 @@ describe('guide', () => {
 
   it('rejects path escape', async () => {
     const root = path.resolve(__dirname, '..');
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fastify-mcp-guide-'));
+    const outsideFile = path.join(outsideDir, 'escape.md');
+    await fs.writeFile(outsideFile, '# outside\n', 'utf8');
     try {
       await readGuideMarkdown({
-        guideMarkdownPath: path.join(root, '..', 'ai-interview-flowup', 'README.md'),
+        guideMarkdownPath: outsideFile,
         guideRootDir: root
       });
       expect.fail('should throw');
     } catch (e) {
       expect(e.statusCode).to.equal(400);
+      expect(e.messageId).to.equal('guidePathEscape');
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
     }
   });
 });

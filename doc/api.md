@@ -8,8 +8,8 @@
 | `dbTableNamePrefix` | string | `'t_mcp_'` | allowlist 表名前缀 |
 | `deny` | string[] | 含 `secret` 相关规则 | 永远不对 MCP 开放的 path 规则 |
 | `catalogPathPrefix` | string | `undefined` | Catalog 仅保留此前缀下的 OpenAPI path |
-| `guideMarkdownPath` | string | `undefined` | 引导 Markdown 文件路径 |
-| `guideRootDir` | string | MD 所在目录 | 读文件允许根，防目录穿越 |
+| `guideMarkdownPath` | string | `` `path.resolve(process.cwd(), 'MCP.md')` `` | 引导 Markdown；默认 Node 启动根目录下的 `MCP.md` |
+| `guideRootDir` | string | `process.cwd()` | 读文件允许根，防目录穿越；默认与启动根一致 |
 | `maxGuideBytes` | number | `262144` | 引导文件大小上限（字节） |
 | `maxDescribeGuideChars` | number | `8000` | `describe_capabilities` 内嵌引导截断长度 |
 | `bodyLimit` | number | `15MB` | MCP POST body 上限 |
@@ -64,7 +64,6 @@
 #### 自定义配置示例
 
 ```javascript
-const path = require('node:path');
 const mcp = require('@kne/fastify-mcp');
 
 fastify.register(mcp, {
@@ -73,8 +72,7 @@ fastify.register(mcp, {
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
   deny: mcp.recommendDeny,
-  guideMarkdownPath: path.join(__dirname, '../MCP.md'),
-  guideRootDir: path.join(__dirname, '..'),
+  // 默认读取 process.cwd()/MCP.md，一般无需再配 guideMarkdownPath
   authenticate: async request => {
     /* Bearer 校验后 request.userInfo = ... */
   },

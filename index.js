@@ -14,8 +14,9 @@ module.exports = fp(
         catalogPathPrefix: undefined,
         serverInfo: { name: 'fastify-mcp', version: '0.1.0' },
         instructions: undefined,
-        guideMarkdownPath: undefined,
-        guideRootDir: undefined,
+        // Node 启动根目录（process.cwd()）下的 MCP.md
+        guideMarkdownPath: path.resolve(process.cwd(), 'MCP.md'),
+        guideRootDir: process.cwd(),
         maxGuideBytes: 256 * 1024,
         maxDescribeGuideChars: 8000,
         bodyLimit: 15 * 1024 * 1024,
@@ -31,6 +32,12 @@ module.exports = fp(
 
     if (!options.adminPrefix) {
       options.adminPrefix = `${options.prefix}/admin/mcp`;
+    }
+    if (!options.guideMarkdownPath) {
+      options.guideMarkdownPath = path.resolve(process.cwd(), 'MCP.md');
+    }
+    if (!options.guideRootDir) {
+      options.guideRootDir = process.cwd();
     }
 
     fastify.register(require('@kne/fastify-namespace'), {

@@ -20,7 +20,6 @@
 #### 基本用法
 
 ```javascript
-const path = require('node:path');
 const fastify = require('fastify')();
 
 await fastify.register(require('@fastify/swagger'), {
@@ -32,8 +31,7 @@ await fastify.register(require('@kne/fastify-sequelize'), {
 
 await fastify.register(require('@kne/fastify-mcp'), {
   prefix: '/api/v1',
-  guideMarkdownPath: path.join(__dirname, '../MCP.md'),
-  guideRootDir: path.join(__dirname, '..'),
+  // guideMarkdownPath 默认 process.cwd()/MCP.md，一般无需配置
   authenticate: async request => {
     // 校验 MCP Bearer，写入 request.userInfo
   },
@@ -51,9 +49,10 @@ await fastify.register(require('@kne/fastify-mcp'), {
 
 1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
 2. `authenticate` 必填；管理端接口依赖 `authenticateAdmin`
-3. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
-4. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
-5. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
+3. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
+4. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
+5. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
+6. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
 
 #### 许可证
 

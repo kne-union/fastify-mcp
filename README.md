@@ -38,7 +38,6 @@ npm i --save @kne/fastify-mcp
 #### 基本用法
 
 ```javascript
-const path = require('node:path');
 const fastify = require('fastify')();
 
 await fastify.register(require('@fastify/swagger'), {
@@ -50,8 +49,7 @@ await fastify.register(require('@kne/fastify-sequelize'), {
 
 await fastify.register(require('@kne/fastify-mcp'), {
   prefix: '/api/v1',
-  guideMarkdownPath: path.join(__dirname, '../MCP.md'),
-  guideRootDir: path.join(__dirname, '..'),
+  // guideMarkdownPath 默认 process.cwd()/MCP.md，一般无需配置
   authenticate: async request => {
     // 校验 MCP Bearer，写入 request.userInfo
   },
@@ -69,9 +67,10 @@ await fastify.register(require('@kne/fastify-mcp'), {
 
 1. 须先注册 `@kne/fastify-sequelize`，并建议注册 `@fastify/swagger` 以提供 OpenAPI
 2. `authenticate` 必填；管理端接口依赖 `authenticateAdmin`
-3. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
-4. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
-5. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
+3. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
+4. 默认 deny 含密钥等路径；导出文件流等勿放入 allowlist，应用专用工具
+5. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
+6. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
 
 #### 许可证
 
@@ -92,8 +91,8 @@ await fastify.register(require('@kne/fastify-mcp'), {
 | `dbTableNamePrefix` | string | `'t_mcp_'` | allowlist 表名前缀 |
 | `deny` | string[] | 含 `secret` 相关规则 | 永远不对 MCP 开放的 path 规则 |
 | `catalogPathPrefix` | string | `undefined` | Catalog 仅保留此前缀下的 OpenAPI path |
-| `guideMarkdownPath` | string | `undefined` | 引导 Markdown 文件路径 |
-| `guideRootDir` | string | MD 所在目录 | 读文件允许根，防目录穿越 |
+| `guideMarkdownPath` | string | `` `path.resolve(process.cwd(), 'MCP.md')` `` | 引导 Markdown；默认 Node 启动根目录下的 `MCP.md` |
+| `guideRootDir` | string | `process.cwd()` | 读文件允许根，防目录穿越；默认与启动根一致 |
 | `maxGuideBytes` | number | `262144` | 引导文件大小上限（字节） |
 | `maxDescribeGuideChars` | number | `8000` | `describe_capabilities` 内嵌引导截断长度 |
 | `bodyLimit` | number | `15MB` | MCP POST body 上限 |
@@ -148,7 +147,6 @@ await fastify.register(require('@kne/fastify-mcp'), {
 #### 自定义配置示例
 
 ```javascript
-const path = require('node:path');
 const mcp = require('@kne/fastify-mcp');
 
 fastify.register(mcp, {
@@ -157,8 +155,7 @@ fastify.register(mcp, {
   adminPrefix: '/api/v1/admin/mcp',
   dbTableNamePrefix: 't_mcp_',
   deny: mcp.recommendDeny,
-  guideMarkdownPath: path.join(__dirname, '../MCP.md'),
-  guideRootDir: path.join(__dirname, '..'),
+  // 默认读取 process.cwd()/MCP.md，一般无需再配 guideMarkdownPath
   authenticate: async request => {
     /* Bearer 校验后 request.userInfo = ... */
   },

@@ -39,7 +39,32 @@ module.exports = ({ DataTypes }) => {
         type: DataTypes.STRING,
         allowNull: false,
         defaultValue: 'active',
-        comment: 'active | orphan'
+        comment: 'active | orphan | missing（missing=种子对账未命中）'
+      },
+      source: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'manual',
+        comment: 'seed | manual；manual=管理端新建，种子不接管'
+      },
+      manualFields: {
+        type: DataTypes.JSON,
+        allowNull: false,
+        defaultValue: [],
+        field: 'manual_fields',
+        comment: 'seed 行上人工改过的字段（scenarios/confirm/enabled），种子重启不再覆盖这些字段'
+      },
+      seedKey: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'seed_key',
+        comment: '种子稳定键，如 GET /api/v1/client/ping'
+      },
+      seedGroup: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'seed_group',
+        comment: 'swagger | file；disableMissing 只对账同组'
       }
     },
     options: {

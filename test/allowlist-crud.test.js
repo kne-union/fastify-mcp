@@ -95,35 +95,6 @@ describe('allowlist CRUD + sync', () => {
     expect(second.json().confirm).to.equal(true);
   });
 
-  it('sync marks missing swagger ops as orphan', async () => {
-    const orphan = await app.mcp.models.allowlist.create({
-      operationId: 'gone_op',
-      method: 'GET',
-      path: '/api/v1/client/removed-route',
-      scenarios: [],
-      confirm: false,
-      enabled: true,
-      status: 'active'
-    });
-
-    const synced = await app.inject({
-      method: 'POST',
-      url: '/api/v1/admin/mcp/mcp-allowlist/sync'
-    });
-    expect(synced.statusCode).to.equal(200);
-    const body = synced.json();
-    expect(body.orphanCount).to.be.at.least(1);
-
-    const refreshed = await app.mcp.services.allowlist.get({ id: orphan.id });
-    expect(refreshed.status).to.equal('orphan');
-    expect(refreshed.enabled).to.equal(false);
-
-    const again = await app.inject({
-      method: 'POST',
-      url: '/api/v1/admin/mcp/mcp-allowlist/sync'
-    });
-    expect(again.statusCode).to.equal(200);
-  });
 });
 
 describe('authenticateAdmin default off', () => {

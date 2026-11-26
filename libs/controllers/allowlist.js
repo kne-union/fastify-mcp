@@ -153,19 +153,4 @@ module.exports = fp(async (fastify, options) => {
       }
     }
   );
-
-  fastify.post(
-    `${adminPrefix}/mcp-allowlist/sync`,
-    {
-      onRequest: [adminAuth],
-      schema: { tags: ['MCP Admin'], summary: '与 swagger 对账，失效标 orphan' }
-    },
-    async (request, reply) => {
-      try {
-        return await services.allowlist.sync();
-      } catch (e) {
-        return sendTranslatedError(fastify, request, reply, e);
-      }
-    }
-  );
 });

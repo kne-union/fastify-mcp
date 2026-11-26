@@ -1,6 +1,6 @@
 {
   "name": "@kne/fastify-mcp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Fastify MCP 宿主插件：Streamable HTTP、OpenAPI 能力索引、全局 allowlist REST、安装引导 Markdown",
   "main": "index.js",
   "scripts": {

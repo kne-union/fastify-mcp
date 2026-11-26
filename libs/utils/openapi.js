@@ -20,7 +20,8 @@ const operationKey = (method, path) => `${normalizeMethod(method)} ${path}`;
 const listSwaggerOperations = (spec, { pathPrefix } = {}) => {
   const result = [];
   Object.keys(spec?.paths || {}).forEach(apiPath => {
-    if (pathPrefix && !apiPath.startsWith(pathPrefix)) {
+    // 按路径段匹配，避免 /api/v1/tenant 误匹配 /api/v1/tenant-extra
+    if (pathPrefix && apiPath !== pathPrefix && !apiPath.startsWith(`${pathPrefix}/`)) {
       return;
     }
     HTTP_METHODS.forEach(method => {

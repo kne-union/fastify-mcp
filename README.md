@@ -24,7 +24,7 @@ npm i --save @kne/fastify-mcp
 
 - **固定三工具**：`describe_capabilities`、`search_apis`、`call_api`（`schema` / `invoke`），避免工具面膨胀
 - **OpenAPI 能力索引**：从 `fastify.swagger()` 投影候选接口，与 allowlist 求交后对 MCP 可见
-- **全局 allowlist REST**：超管可 CRUD / batch / sync，未开启即不可见、不可调用
+- **全局 allowlist REST**：超管可 CRUD / batch；接口增删与默认场景由启动时 `seedFromSwagger` 对账，未开启即不可见、不可调用
 - **MCP 密钥**：库内签发与 Bearer 验签；业务只提供 `resolveUser` / `authenticateUser`
 - **安装引导**：`GET {prefix}/mcp/guide` 安全读取宿主配置的 `MCP.md`
 - **可扩展**：支持 `registerExtraTools`、`createInvokeHeaders`（如内部 nonce）对接业务特例
@@ -68,17 +68,28 @@ await fastify.register(require('@kne/fastify-mcp'), {
 });
 ```
 
-业务仓在 `mcpSeeds/` 下放 `.js` / `.json` 种子文件，导出 allowlist 数组，例如：
+业务仓可二选一或同时用：
+
+1. **`seedFromSwagger`**：按 OpenAPI 投影播种；默认场景取 `x-mcp-scenarios`（否则 `tags`），confirm 取 `x-mcp-confirm`（缺省则非 GET 为 true）
+2. **`seedsDir`**：业务仓 `mcpSeeds/` 下放 `.js` / `.json` 显式条目
 
 ```javascript
-// mcpSeeds/recommended.js
+// 推荐：在路由 schema 声明场景（seedFromSwagger 会读到）
+fastify.get('/api/v1/client/project/list', {
+  schema: {
+    tags: ['项目'],
+    'x-mcp-scenarios': ['建项目'],
+    'x-mcp-confirm': false
+  }
+}, handler);
+
+// 或 mcpSeeds/recommended.js 显式种子
 module.exports = [
-  { method: 'GET', path: '/api/v1/client/project/list', scenarios: ['建项目'], confirm: false },
-  { method: 'POST', path: '/api/v1/client/project/create', scenarios: ['建项目'], confirm: true }
+  { method: 'GET', path: '/api/v1/client/project/list', scenarios: ['建项目'], confirm: false }
 ];
 ```
 
-启动并完成 sequelize sync 后，插件会调用 `services.allowlist.includeSeeds(seedsDir)` 导入（也可手动调用）。
+Fastify ready 之后插件后台 `includeSeeds` / `seedFromSwagger`（`upsertSeed`，不覆盖 `source=manual`）；完成态见 `fastify.mcp.seedPromise`。MCP 读能力面会 `ensureSeeded`，避免首波空目录。种子对账默认 `disableMissing`：同组未再出现的条目标 `missing` 并禁用。
 
 Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/guide`；密钥由登录用户通过 `POST {prefix}/mcp-keys` 签发。
 
@@ -88,8 +99,8 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 
 1. **顺序**：`describe_capabilities` → `search_apis` → `call_api mode=schema` → `call_api mode=invoke`。不要凭记忆拼 path。
 2. **禁止只靠无参 `search_apis`**：不传 `query` / `tag` / `scenario` 时返回按场景分组的目录，**每个场景最多展示 5 条**。接口多时目录会严重不全，必须带关键词搜索。
-3. **allowlist 必须写 `scenarios`**：种子或 REST 创建时为每条接口设置场景标签（如「面试进度」「创建项目」）。`scenarios` 为空时全部落入「未分类」，目录与 `describe_capabilities` 快照几乎不可用；且 `search_apis` 的 `query` 会匹配 scenarios 文本，场景名即检索词。
-4. **检索词要对齐业务语义**：用场景名或接口 summary 里会出现的词；避免过宽单字（例如只搜「进度」可能命中无关的 progress 接口）。业务引导 `MCP.md` 应写清推荐 `scenario` / `query`，**不必罗列具体 path**。
+3. **allowlist 必须有 `scenarios`**：`seedFromSwagger` 默认从 `x-mcp-scenarios` / `tags` 带出；`seedsDir` / REST 创建时也要写场景标签。空场景会落入「未分类」，目录几乎不可用；`search_apis` 的 `query` 也会匹配 scenarios。
+4. **检索词要对齐业务语义**：用场景名或接口 summary 里会出现的词；避免过宽单字。业务引导 `MCP.md` 应写清推荐 `scenario` / `query`，**不必罗列具体 path**。
 5. **写操作**：allowlist `confirm=true` 时，Agent 须先向用户确认再传 `userConfirmed=true`。
 6. **文件流 / 二进制**：默认 deny 已挡住 `**/export-**` 等；报告下载、上传等用 `registerExtraTools` 专用工具，不要塞进通用 `call_api`。
 
@@ -99,7 +110,7 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 2. `resolveUser`、`authenticateUser` 必填；MCP 进门鉴权由库固定实现，业务不可覆盖；错误文案通过 intl 语言包（`zh-CN` / `en-US`）翻译
 3. `authenticateAdmin` 默认关闭（allowlist 管理端不鉴权），生产环境建议配置
 4. 默认在 Node 启动根目录（`process.cwd()`）读取 `MCP.md`；可按需覆盖 `guideMarkdownPath` / `guideRootDir`
-5. allowlist 种子放在业务仓 `seedsDir`（建议 `./mcpSeeds`），不要写进本库；种子务必带 `scenarios`
+5. 种子用 `seedsDir` 或 `seedFromSwagger`；重启不覆盖人工禁用/场景；宿主不要再写 `onReady + setImmediate`
 6. 默认 `deny` 即 `recommendDeny`（密钥路径 + `**/export-**`）；业务通常不必再传；导出文件流等勿放入 allowlist，应用专用工具
 7. 引导 MD 只读配置路径，禁止目录穿越；不做在线编辑
 8. README 由 `npm run build:md` 根据 `doc/` 生成，请勿手改 README 中由工具生成的章节
@@ -136,7 +147,8 @@ Agent 使用 `Authorization: Bearer <keyId>.<secret>` 访问 `/mcp` 与 `/mcp/gu
 | `createInvokeHeaders` | function | — | `(ctx) => headers`，inject 时附加 |
 | `registerExtraTools` | function | — | `(mcpServer, ctx) => void` 注册特例工具 |
 | `getSwagger` | function | `() => fastify.swagger()` | 自定义 OpenAPI 文档来源 |
-| `seedsDir` | string | `null` | 业务仓 allowlist 种子目录；sync 后自动 `includeSeeds` |
+| `seedsDir` | string | `null` | 业务仓 allowlist 种子目录；ready 后自动 `includeSeeds` |
+| `seedFromSwagger` | boolean \| object | `null` | ready 后按 swagger 投影写入 allowlist；见下方约定 |
 
 MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`），**不提供**业务可覆盖的 `authenticate`。
 
@@ -146,7 +158,7 @@ MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`）
 
 本插件通过 `@kne/fastify-namespace` 注册到 `options.name`（默认 `mcp`）命名空间。常用访问：
 
-- `fastify.mcp.services.allowlist` — allowlist CRUD / sync / `includeSeeds`
+- `fastify.mcp.services.allowlist` — allowlist CRUD / `includeSeeds` / `seedFromSwagger`
 - `fastify.mcp.services.key` — MCP 密钥 create / list / remove / verifyBearer
 - `fastify.mcp.services.capability` — 索引 / 搜索 / describe
 - `fastify.mcp.services.invoke` — `callApi`
@@ -174,8 +186,6 @@ MCP 进门鉴权由库固定实现（`Authorization: Bearer <keyId>.<secret>`）
 | `PATCH` | `{adminPrefix}/mcp-allowlist/:id` | 更新 |
 | `DELETE` | `{adminPrefix}/mcp-allowlist/:id` | 删除 |
 | `PUT` | `{adminPrefix}/mcp-allowlist/batch` | 批量 upsert |
-| `POST` | `{adminPrefix}/mcp-allowlist/sync` | 与 swagger 对账 |
-
 #### MCP 工具
 
 | 工具 | 说明 |
@@ -229,12 +239,48 @@ fastify.register(mcp, {
 | 目录位置 | **业务仓**内，建议 `./mcpSeeds`；通过 `seedsDir` 传入绝对路径 |
 | 文件类型 | `.js`（`module.exports = [...]`）或 `.json`（数组） |
 | 条目字段 | `{ method, path, scenarios?, confirm?, enabled?, operationId? }` |
-| 加载时机 | sequelize `syncPromise` 完成后自动 `includeSeeds`；目录不存在则跳过 |
+| 加载时机 | **Fastify ready 之后**（需 `.swagger()`）由库内 `runAfterReady` 后台执行；完成态见 `fastify.mcp.seedPromise` |
+| upsert | 走 `upsertSeed`：`source=seed`；已有 `source=manual` 只刷 `operationId`，不覆盖 `enabled` / `scenarios` / `confirm` |
+| disableMissing | 默认 `true`（对齐 message `includeTemplate`）：本次未出现的同组种子标 `status=missing` 且 `enabled=false` |
 | 失败策略 | 单条与 swagger/deny 校验失败时打日志并跳过，不中断启动 |
+
+#### seedFromSwagger 约定
+
+| 项 | 说明 |
+|----|------|
+| 配置 | `seedFromSwagger: true` 或 `{ pathPrefix?, getScenarios?, getConfirm?, enabled?, disableMissing? }` |
+| 默认场景 | 读 `x-mcp-scenarios` / `mcp.scenarios`，否则 OpenAPI `tags`；`getScenarios` 可覆盖 |
+| 默认 confirm | `x-mcp-confirm` / `mcp.confirm`，否则非 GET 为 `true`；`getConfirm` 可覆盖 |
+| 默认 enabled | `false`（对 MCP 开放默认全关；显式 `enabled: true` 才整批打开） |
+| 作用 | ready 后按 OpenAPI 投影 `upsertSeed`（`seedGroup=swagger`）；与 `seedsDir` 可同时开 |
+| 完成态 | `await fastify.mcp.seedPromise`；MCP 读能力面（`listActive`）会 `ensureSeeded`，避免首波空目录 |
+| 注意 | 宿主**不要**再写 `onReady + setImmediate`；长耗时 seed 不阻塞 pluginTimeout |
+
+路由 schema 示例（场景优先 `x-mcp-scenarios`，否则 `tags`）：
+
+```javascript
+fastify.get('/api/v1/client/project/list', {
+  schema: {
+    tags: ['项目'],
+    'x-mcp-scenarios': ['建项目'],
+    'x-mcp-confirm': false
+  }
+}, handler);
+```
+
+#### allowlist 字段（种子对账）
+
+| 字段 | 说明 |
+|------|------|
+| `source` | `seed` \| `manual`；管理端 create/patch 配置后记为 `manual` |
+| `seedKey` | 稳定键，如 `GET /api/v1/client/ping` |
+| `seedGroup` | `swagger` \| `file`；`disableMissing` 只对账同组 |
+| `status` | `active` \| `orphan`（swagger 对账）\| `missing`（种子对账未命中） |
 
 #### 规则说明
 
-1. 未进入 allowlist（或 `enabled=false` / `status=orphan`）的接口对 MCP 不可见、不可 invoke
+1. 未进入 allowlist（或 `enabled=false` / `status` 非 `active`）的接口对 MCP 不可见、不可 invoke
 2. deny 列表内路径不可加入 allowlist，也不进入 catalog
 3. 写操作可在 allowlist 上标记 `confirm=true`，invoke 须传 `userConfirmed=true`
 4. 二进制 / 文件流不要走通用 `call_api` invoke，应使用专用工具或 REST 上传换 fileId
+5. 种子重启**不会**覆盖人工禁用或人工改过的场景；删掉种子条目后同组残留会被标 `missing`

@@ -22,7 +22,7 @@ describe('seedsDir / includeSeeds', () => {
     const app = await createApp({ seedsDir: path.join(__dirname, 'fixtures/not-exists') });
     try {
       const result = await app.mcp.services.allowlist.includeSeeds(path.join(__dirname, 'fixtures/not-exists'));
-      expect(result).to.deep.equal({ imported: 0, skipped: 0 });
+      expect(result).to.deep.equal({ imported: 0, skipped: 0, disabled: 0 });
     } finally {
       await app.close();
     }

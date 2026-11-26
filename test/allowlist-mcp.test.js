@@ -149,6 +149,33 @@ describe('allowlist + mcp tools', () => {
     expect(String(okBody.result?.content?.[0]?.text || '')).to.include('demo');
   });
 
+  it('catalog supports multi scenario/enabled filter and pagination', async () => {
+    await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/mcp/mcp-allowlist/batch',
+      payload: {
+        items: [
+          { method: 'GET', path: '/api/v1/client/ping', scenarios: ['系统'], enabled: true },
+          { method: 'GET', path: '/api/v1/client/project/list', scenarios: ['建项目'], enabled: true }
+        ]
+      }
+    });
+    const filtered = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/mcp/mcp-catalog/operations?scenario=%E7%B3%BB%E7%BB%9F,%E5%BB%BA%E9%A1%B9%E7%9B%AE&enabled=true&perPage=10&currentPage=1'
+    });
+    expect(filtered.statusCode).to.equal(200);
+    const body = filtered.json();
+    expect(body.totalCount).to.be.at.least(2);
+    expect(
+      body.pageData.every(item => {
+        const scenarios = item.scenarios || [];
+        return item.enabled && (scenarios.includes('系统') || scenarios.includes('建项目'));
+      })
+    ).to.equal(true);
+    expect(body.pageData.length).to.be.at.most(10);
+  });
+
   it('rejects adding denied path to allowlist', async () => {
     const res = await app.inject({
       method: 'POST',

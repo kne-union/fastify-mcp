@@ -1,8 +1,22 @@
 const fp = require('fastify-plugin');
 const path = require('node:path');
+const { runAfterReady } = require('./libs/utils/run-after-ready');
 
 /** 默认 deny：密钥路径 + 导出类文件流接口（勿放入 allowlist） */
 const recommendDeny = ['**/client/secret/**', '**/secret/**', '**/export-**'];
+
+const normalizeSeedFromSwagger = value => {
+  if (!value) {
+    return null;
+  }
+  if (value === true) {
+    return {};
+  }
+  if (typeof value === 'object') {
+    return value;
+  }
+  return null;
+};
 
 module.exports = fp(
   async (fastify, options) => {
@@ -32,7 +46,14 @@ module.exports = fp(
         registerExtraTools: undefined,
         getSwagger: undefined,
         // 业务仓 allowlist 种子目录，库内不内置业务种子
-        seedsDir: null
+        seedsDir: null,
+        /**
+         * ready 后按 swagger 投影写入 allowlist（upsertSeed，不覆盖 manual）。
+         * true | { pathPrefix?, getScenarios?, getConfirm?, enabled?, disableMissing? }
+         * 默认场景：operation 的 x-mcp-scenarios / mcp.scenarios，否则 tags
+         * 默认 enabled=false（对 MCP 开放默认全关）
+         */
+        seedFromSwagger: null
       },
       options
     );
@@ -57,6 +78,8 @@ module.exports = fp(
       options.guideRootDir = process.cwd();
     }
 
+    const seedFromSwaggerOpts = normalizeSeedFromSwagger(options.seedFromSwagger);
+
     fastify.register(require('@kne/fastify-namespace'), {
       options,
       name: options.name,
@@ -73,20 +96,30 @@ module.exports = fp(
       ]
     });
 
-    // sync 完成后从业务 seedsDir 导入 allowlist（同 fastify-message 的 templateDir 写法）
-    fastify.register(
-      fp(async (fastify, options) => {
-        const { services } = fastify[options.name];
-        fastify.sequelize.syncPromise
-          .then(async () => {
-            if (options.seedsDir) {
-              await services.allowlist.includeSeeds(options.seedsDir);
-            }
-          })
-          .catch(e => fastify.log.error(e, '[fastify-mcp] includeSeeds 失败'));
-      }),
-      options
-    );
+    // ready 之后再 seed（需 swagger）；不阻塞 pluginTimeout。完成态见 fastify.mcp.seedPromise
+    const seedPromise = runAfterReady(fastify, async () => {
+      await fastify.sequelize.syncPromise;
+      const { services } = fastify[options.name];
+      const result = { seedsDir: null, seedFromSwagger: null };
+      if (options.seedsDir) {
+        result.seedsDir = await services.allowlist.includeSeeds(options.seedsDir);
+      }
+      if (seedFromSwaggerOpts) {
+        result.seedFromSwagger = await services.allowlist.seedFromSwagger(seedFromSwaggerOpts);
+      }
+      return result;
+    });
+
+    seedPromise.catch(err => {
+      fastify.log.error({ err }, '[fastify-mcp] seed 失败');
+    });
+
+    // namespace 装饰在 register 微任务后才挂上；这里用 then 挂到同一 name 对象上
+    fastify.after(() => {
+      if (fastify[options.name]) {
+        fastify[options.name].seedPromise = seedPromise;
+      }
+    });
   },
   {
     name: 'fastify-mcp',
@@ -97,3 +130,6 @@ module.exports = fp(
 module.exports.recommendDeny = recommendDeny;
 module.exports.readGuideMarkdown = require('./libs/utils/guide').readGuideMarkdown;
 module.exports.buildDenyMatcher = require('./libs/utils/deny').isDenied;
+module.exports.runAfterReady = runAfterReady;
+module.exports.scenariosFromOperation = require('./libs/utils/scenarios').scenariosFromOperation;
+module.exports.confirmFromOperation = require('./libs/utils/scenarios').confirmFromOperation;

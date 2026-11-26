@@ -23,14 +23,21 @@ module.exports = fp(async (fastify, options) => {
           properties: {
             keyword: { type: 'string' },
             tag: { type: 'string' },
-            limit: { type: 'number' }
+            // 多选：逗号分隔或重复 query（scenario=a&scenario=b）
+            scenario: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
+            enabled: { type: 'boolean' },
+            limit: { type: 'number' },
+            perPage: { type: 'number' },
+            currentPage: { type: 'number' }
           }
         }
       }
     },
     async request => {
-      const items = await services.capability.buildCatalog(request.query || {});
-      return { pageData: items, totalCount: items.length };
+      const query = { ...(request.query || {}) };
+      if (query.enabled === 'true') query.enabled = true;
+      if (query.enabled === 'false') query.enabled = false;
+      return await services.capability.buildCatalog(query);
     }
   );
 });

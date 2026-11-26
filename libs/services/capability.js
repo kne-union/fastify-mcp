@@ -9,9 +9,18 @@ module.exports = fp(async (fastify, options) => {
   const err = (messageId, statusCode, values) => createAppError(fastify, options.name, messageId, statusCode, values);
   const getSwagger = () => (typeof options.getSwagger === 'function' ? options.getSwagger() : fastify.swagger());
 
-  const buildCatalog = async ({ keyword, tag, limit } = {}) => {
-    const allowRows = await fastify[options.name].services.allowlist.listActive();
-    const enabledKeys = new Set(allowRows.map(row => operationKey(row.method, row.path)));
+  const normalizeScenarioList = scenario => {
+    if (scenario == null || scenario === '') {
+      return [];
+    }
+    const raw = Array.isArray(scenario) ? scenario : String(scenario).split(',');
+    return raw.map(s => String(s).trim()).filter(Boolean);
+  };
+
+  const buildCatalog = async ({ keyword, tag, scenario, enabled, limit, perPage, currentPage } = {}) => {
+    // 含 enabled=false 的行，避免关闭后丢失 scenarios/confirm 展示
+    await fastify[options.name].services.allowlist.ensureSeeded();
+    const { pageData: allowRows } = await fastify[options.name].services.allowlist.list({ perPage: 100000, currentPage: 1 });
     const enabledByKey = new Map(allowRows.map(row => [operationKey(row.method, row.path), row]));
     const word = String(keyword || '')
       .trim()
@@ -19,30 +28,53 @@ module.exports = fp(async (fastify, options) => {
     const tagWord = String(tag || '')
       .trim()
       .toLowerCase();
-    let list = listSwaggerOperations(getSwagger(), { pathPrefix: options.catalogPathPrefix }).filter(item => !isDenied(item.path, options.deny || []));
+    const scenarioList = normalizeScenarioList(scenario).map(s => s.toLowerCase());
+    let list = listSwaggerOperations(getSwagger(), { pathPrefix: options.catalogPathPrefix })
+      .filter(item => !isDenied(item.path, options.deny || []))
+      .map(item => {
+        const key = operationKey(item.method, item.path);
+        const allow = enabledByKey.get(key);
+        return {
+          operationId: item.operationId,
+          method: item.method,
+          path: item.path,
+          summary: item.summary,
+          tags: item.tags,
+          enabled: allow ? !!allow.enabled && allow.status === 'active' : false,
+          scenarios: allow?.scenarios || [],
+          confirm: !!allow?.confirm
+        };
+      });
     if (word) {
-      list = list.filter(item => `${item.path} ${item.summary} ${item.operationId || ''}`.toLowerCase().includes(word));
+      list = list.filter(item => `${item.path} ${item.summary} ${item.operationId || ''} ${(item.scenarios || []).join(' ')}`.toLowerCase().includes(word));
     }
     if (tagWord) {
       list = list.filter(item => item.tags.some(t => String(t).toLowerCase().includes(tagWord)));
     }
+    // 多选场景：命中任一即可
+    if (scenarioList.length) {
+      const emptyLabels = new Set(['未分类', 'uncategorized']);
+      list = list.filter(item => {
+        const scenarios = (item.scenarios || []).map(s => String(s).toLowerCase());
+        if (!scenarios.length) {
+          return scenarioList.some(s => emptyLabels.has(s));
+        }
+        return scenarioList.some(s => scenarios.includes(s));
+      });
+    }
+    if (typeof enabled === 'boolean') {
+      list = list.filter(item => !!item.enabled === enabled);
+    }
     if (limit) {
       list = list.slice(0, limit);
     }
-    return list.map(item => {
-      const key = operationKey(item.method, item.path);
-      const allow = enabledByKey.get(key);
-      return {
-        operationId: item.operationId,
-        method: item.method,
-        path: item.path,
-        summary: item.summary,
-        tags: item.tags,
-        enabled: enabledKeys.has(key),
-        scenarios: allow?.scenarios || [],
-        confirm: !!allow?.confirm
-      };
-    });
+    const totalCount = list.length;
+    const pageSize = perPage != null ? Math.max(1, Number(perPage) || 20) : null;
+    if (pageSize) {
+      const pageNum = Math.max(1, Number(currentPage) || 1);
+      list = list.slice((pageNum - 1) * pageSize, pageNum * pageSize);
+    }
+    return { pageData: list, totalCount };
   };
 
   const buildIndex = async () => {

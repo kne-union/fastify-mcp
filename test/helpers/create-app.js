@@ -12,6 +12,7 @@ const createApp = async ({
   useDefaultGuide,
   disableAdminAuth,
   seedsDir,
+  seedFromSwagger,
   users
 } = {}) => {
   const fastify = Fastify({ logger: false });
@@ -35,6 +36,7 @@ const createApp = async ({
             operationId: 'client_project_list',
             summary: '项目列表',
             tags: ['项目'],
+            'x-mcp-scenarios': ['建项目'],
             querystring: {
               type: 'object',
               properties: { perPage: { type: 'number' } }
@@ -50,6 +52,8 @@ const createApp = async ({
             operationId: 'client_project_create',
             summary: '创建项目',
             tags: ['项目'],
+            'x-mcp-scenarios': ['建项目'],
+            'x-mcp-confirm': true,
             body: {
               type: 'object',
               properties: { name: { type: 'string' } }
@@ -121,6 +125,9 @@ const createApp = async ({
   if (seedsDir) {
     mcpOptions.seedsDir = seedsDir;
   }
+  if (seedFromSwagger !== undefined) {
+    mcpOptions.seedFromSwagger = seedFromSwagger;
+  }
   await fastify.register(require('../../index'), mcpOptions);
 
   await fastify.register(
@@ -131,9 +138,9 @@ const createApp = async ({
 
   await fastify.ready();
   await fastify.sequelize.syncPromise;
-  // 与 message 测试一致：插件侧 fire-and-forget，测试里显式再 import 一次保证就绪
-  if (seedsDir) {
-    await fastify.mcp.services.allowlist.includeSeeds(seedsDir);
+  // 插件在 ready 后后台 seed；测试等待 seedPromise，勿在宿主再套 setImmediate
+  if (fastify.mcp?.seedPromise) {
+    await fastify.mcp.seedPromise;
   }
 
   const issueKey = async ({ userId = 'u1', name = 'test-key' } = {}) => {
